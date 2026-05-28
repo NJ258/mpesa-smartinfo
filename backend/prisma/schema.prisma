@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CLIENT
+  AGENT
+  ADMIN
+}
+
+enum RequestStatus {
+  PENDING
+  RESOLVED
+}
+
+enum TemporaryAgentStatus {
+  PENDING
+  ACCEPTED
+  AVAILABLE
+  FINISHED
+}
+
+enum PingType {
+  WITHDRAW
+  DEPOSIT
+}
+
+enum PingStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  ON_THE_WAY
+  ARRIVED
+  EXPIRED
+}
+
+model User {
+  id          String   @id @default(uuid())
+  name        String
+  phoneNumber String   @unique
+  role        UserRole @default(CLIENT)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  liquidityPings LiquidityPing[]
+}
+
+model Agent {
+  id             String   @id @default(uuid())
+  code           String   @unique
+  name           String
+  phoneNumber    String?  @unique
+  password       String?
+  location       String
+  latitude       Float
+  longitude      Float
+  referencePoint String?
+  isActive       Boolean  @default(false)
+  hasCash        Boolean  @default(false)
+  hasFloat       Boolean  @default(false)
+  rating         Float    @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  liquidityPings LiquidityPing[]
+  ratings        Rating[]
+}
+
+model Admin {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model HelpRequest {
+  id          String        @id @default(uuid())
+  userName    String
+  phoneNumber String?
+  location    String
+  description String
+  status      RequestStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model TemporaryAgent {
+  id             String               @id @default(uuid())
+  agentName      String
+  targetLocation String
+  latitude       Float
+  longitude      Float
+  status         TemporaryAgentStatus @default(PENDING)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+}
+
+model LiquidityPing {
+  id          String     @id @default(uuid())
+  clientName  String
+  clientPhone String
+  agentId     String
+  agentName   String
+  amount      Float
+  type        PingType
+  status      PingStatus @default(PENDING)
+  eta         String?
+  token       String?
+  expiresAt   DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  agent Agent @relation(fields: [agentId], references: [id])
+  user  User? @relation(fields: [clientPhone], references: [phoneNumber])
+}
+
+model Rating {
+  id        String   @id @default(uuid())
+  agentId   String
+  stars     Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  agent Agent @relation(fields: [agentId], references: [id])
+}
