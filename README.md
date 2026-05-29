@@ -60,4 +60,4 @@ npm run dev
 
 ## Objetivo
 
-Contribuir para a inclusão financeira, ajudando utilizadores a encontrar agentes M-Pesa disponíveis de forma simples, rápida e acessível.
+Contribuir para a inclusão financeira, ajudando utilizadores a encontrar agentes M-Pesa disponíveis de forma simples, rápida e acessível. 
