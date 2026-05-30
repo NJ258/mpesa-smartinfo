@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
-const ReservationTimer = ({ onExpire }: { onExpire: () => void }) => {
-  const [seconds, setSeconds] = useState(600);
+const ReservationTimer = ({ onExpire, minutes = 10 }: { onExpire: () => void; minutes?: number }) => {
+  const [seconds, setSeconds] = useState(minutes * 60);
 
   useEffect(() => {
     if (seconds <= 0) {
@@ -12,13 +12,15 @@ const ReservationTimer = ({ onExpire }: { onExpire: () => void }) => {
     return () => window.clearInterval(interval);
   }, [seconds, onExpire]);
 
-  const minutes = Math.floor(seconds / 60);
+  const minutesLeft = Math.floor(seconds / 60);
   const remaining = seconds % 60;
+
+  const label = minutes === 15 ? '15+ min' : `${minutes} min`;
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-4 text-center shadow-sm">
-      <p className="text-sm font-semibold text-mpesaGray">Reserva activa por 10 minutos</p>
-      <p className="mt-2 text-2xl font-bold text-mpesaRed">{minutes}:{remaining.toString().padStart(2, '0')}</p>
+      <p className="text-sm font-semibold text-mpesaGray">Reserva activa por {label}</p>
+      <p className="mt-2 text-2xl font-bold text-mpesaRed">{minutesLeft}:{remaining.toString().padStart(2, '0')}</p>
     </div>
   );
 };

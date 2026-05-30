@@ -163,3 +163,64 @@ export const loginAdmin = async (req: Request, res: Response): Promise<void> => 
     res.status(500).json({ message: 'Erro interno do servidor' })
   }
 }
+
+// POST /api/agents/:id/rate — Add a rating for an agent and update average
+export const rateAgent = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const agentId = String(req.params.id);
+    const { stars, comment, clientPhone } = req.body;
+
+    if (!clientPhone || typeof clientPhone !== 'string') {
+      res.status(400).json({ message: 'clientPhone is required' });
+      return;
+    }
+
+    if (!stars || typeof stars !== 'number' || stars < 1 || stars > 5) {
+      res.status(400).json({ message: 'Stars must be a number between 1 and 5' });
+      return;
+    }
+
+    const agent = await prisma.agent.findUnique({ where: { id: agentId } });
+    if (!agent) {
+      res.status(404).json({ message: 'Agent not found' });
+      return;
+    }
+
+    const existing = await prisma.rating.findUnique({
+      where: {
+        agentId_clientPhone: {
+          agentId,
+          clientPhone: String(clientPhone),
+        }
+      }
+    });
+
+    if (existing) {
+      res.status(400).json({ message: 'Este número já avaliou este agente.' });
+      return;
+    }
+
+    const rating = await prisma.rating.create({
+      data: {
+        agentId,
+        clientPhone: String(clientPhone),
+        stars: Math.floor(stars),
+        comment: comment ? String(comment) : undefined,
+      }
+    });
+
+    // Recalculate average
+    const agg = await prisma.rating.aggregate({
+      where: { agentId },
+      _avg: { stars: true }
+    });
+
+    const avg = agg._avg?.stars ?? agent.rating;
+    const updated = await prisma.agent.update({ where: { id: agentId }, data: { rating: Number(avg) } });
+
+    res.json({ message: 'Rating added', rating, agent: updated });
+  } catch (error) {
+    console.error('Erro ao adicionar rating:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+}

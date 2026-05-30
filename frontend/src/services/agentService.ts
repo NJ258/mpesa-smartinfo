@@ -33,3 +33,8 @@ export const updateAgentStatus = async (id: string, status: { isActive?: boolean
   return response.data;
 };
 
+export const rateAgent = async (id: string, stars: number, comment?: string, clientPhone?: string) => {
+  const response = await api.post(`/agents/${id}/rate`, { stars, comment, clientPhone });
+  return response.data;
+};
+

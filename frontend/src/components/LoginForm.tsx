@@ -14,7 +14,8 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
   const [adminPassword, setAdminPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (activeTab === 'agent') {
       onLogin('agent', { field1: agentName, field2: agentCode });
     } else {
@@ -23,7 +24,7 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
   };
 
   return (
-    <div className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-5">
       {/* Tab Switcher */}
       <div className="flex rounded-2xl bg-slate-100 p-1 gap-1">
         <button
@@ -135,8 +136,7 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
       <div className="pt-2">
         {activeTab === 'agent' ? (
           <PrimaryButton
-            type="button"
-            onClick={handleSubmit}
+            type="submit"
             className="w-full py-3.5 font-bold flex justify-center items-center gap-2 shadow-lg shadow-mpesaRed/10 hover:shadow-mpesaRed/25 transform active:scale-98 transition"
           >
             <UserCheck className="h-4 w-4" />
@@ -144,8 +144,7 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
           </PrimaryButton>
         ) : (
           <button
-            type="button"
-            onClick={handleSubmit}
+            type="submit"
             className="w-full rounded-2xl bg-slate-800 hover:bg-slate-900 py-3.5 text-sm font-bold text-white flex justify-center items-center gap-2 transform active:scale-98 transition shadow-lg shadow-slate-950/10"
           >
             <ShieldCheck className="h-4 w-4" />
@@ -153,7 +152,7 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
           </button>
         )}
       </div>
-    </div>
+    </form>
   );
 };
 

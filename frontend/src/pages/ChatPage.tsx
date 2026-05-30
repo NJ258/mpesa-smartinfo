@@ -7,7 +7,8 @@ import ReservationTimer from '../components/ReservationTimer';
 import { mockAgents } from '../data/mockAgents';
 import type { Agent } from '../types';
 import { fetchAgentById } from '../services/agentService';
-import { createPing, setOnTheWay } from '../services/liquidityPingService';
+import { rateAgent } from '../services/agentService';
+import { createPing, setOnTheWay, confirmArrival, rejectPing } from '../services/liquidityPingService';
 import axios from 'axios';
 
 const ChatPage = () => {
@@ -18,8 +19,16 @@ const ChatPage = () => {
   const [type, setType] = useState<'Levantamento' | 'Depósito' | ''>('');
   const [amount, setAmount] = useState('');
   const [step, setStep] = useState<'select' | 'amount' | 'pending' | 'confirmed' | 'rejected' | 'eta' | 'arrived'>('select');
+  const [etaMinutes, setEtaMinutes] = useState<number>(10);
   const [responseMessage, setResponseMessage] = useState('');
   const [currentPing, setCurrentPing] = useState<any | null>(null);
+  const [showRating, setShowRating] = useState(false);
+  const [ratingStars, setRatingStars] = useState<number>(5);
+  const [ratingComment, setRatingComment] = useState<string>('');
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
+  const [showEtaPopup, setShowEtaPopup] = useState(false);
+  const [customEtaValue, setCustomEtaValue] = useState('15');
+  const [etaError, setEtaError] = useState('');
 
   useEffect(() => {
     if (!agentId) return;
@@ -95,10 +104,51 @@ const ChatPage = () => {
   };
 
   const handleEtaSelect = async (eta: string) => {
+    let parsed = parseInt(eta, 10);
+    if (eta.includes('+')) {
+      setShowEtaPopup(true);
+      setCustomEtaValue('15');
+      setEtaError('');
+      return;
+    }
+
+    if (!isNaN(parsed) && parsed > 30) parsed = 30;
+    setEtaMinutes(isNaN(parsed) ? 15 : parsed);
+
     if (!currentPing?.id) {
       setStep('arrived');
       return;
     }
+    try {
+      const updated = await setOnTheWay(currentPing.id, eta);
+      setCurrentPing(updated);
+      setStep('arrived');
+    } catch (err) {
+      console.error('Erro ao confirmar a caminho:', err);
+      setStep('arrived');
+    }
+  };
+
+  const confirmCustomEta = async () => {
+    const parsed = parseInt(customEtaValue, 10);
+    if (isNaN(parsed) || parsed < 1) {
+      setEtaError('Informe um valor entre 1 e 30 minutos.');
+      return;
+    }
+    const limited = parsed > 30 ? 30 : parsed;
+    if (parsed > 30) {
+      setEtaError('O tempo máximo é 30 minutos. Ajustado para 30 min.');
+    }
+
+    const eta = `${limited} min`;
+    setEtaMinutes(limited);
+    setShowEtaPopup(false);
+
+    if (!currentPing?.id) {
+      setStep('arrived');
+      return;
+    }
+
     try {
       const updated = await setOnTheWay(currentPing.id, eta);
       setCurrentPing(updated);
@@ -276,8 +326,8 @@ const ChatPage = () => {
               <Clock className="h-4 w-4 text-slate-500" />
               <p className="text-sm font-bold text-slate-700">Quanto tempo até chegar?</p>
             </div>
-            <div className="grid gap-2.5 grid-cols-3">
-              {['5 min', '10 min', '15+ min'].map(label => (
+            <div className="grid gap-2.5 grid-cols-4">
+              {['5 min', '10 min', '15+ min', '30 min'].map(label => (
                 <button 
                   key={label} 
                   type="button" 
@@ -292,7 +342,120 @@ const ChatPage = () => {
         )}
 
         {/* Step: Arrived / Timer */}
-        {step === 'arrived' && <ReservationTimer onExpire={() => navigate('/map')} />}
+        {step === 'arrived' && (
+          <div className="space-y-4">
+            <ReservationTimer minutes={etaMinutes} onExpire={() => navigate('/map')} />
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                className="rounded-2xl bg-emerald-600 text-white py-3.5 font-bold"
+                onClick={async () => {
+                  try {
+                    if (currentPing?.id) await confirmArrival(currentPing.id);
+                    setShowRating(true);
+                  } catch (err) {
+                    console.error('Erro ao confirmar chegada:', err);
+                    setShowRating(true);
+                  }
+                }}
+              >
+                Cheguei
+              </button>
+              <button
+                type="button"
+                className="rounded-2xl bg-red-600 text-white py-3.5 font-bold"
+                onClick={async () => {
+                  try {
+                    if (currentPing?.id) await rejectPing(currentPing.id);
+                    navigate('/map');
+                  } catch (err) {
+                    console.error('Erro ao cancelar pedido:', err);
+                    navigate('/map');
+                  }
+                }}
+              >
+                Não virei mais
+              </button>
+            </div>
+            {showRating && agent && (
+              <div className="mt-4 rounded-2xl border border-slate-100 bg-white p-4">
+                <p className="text-sm font-bold text-slate-700">Avalie o agente</p>
+                <div className="flex items-center gap-2 mt-2">
+                  {[1,2,3,4,5].map(s => (
+                    <button key={s} type="button" onClick={() => setRatingStars(s)} className={`text-2xl ${ratingStars>=s? 'text-amber-400':'text-slate-300'}`}>
+                      ★
+                    </button>
+                  ))}
+                </div>
+                <textarea value={ratingComment} onChange={e=>setRatingComment(e.target.value)} placeholder="Comentário (opcional)" className="w-full mt-3 p-3 rounded-xl border border-slate-200" />
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <button className="rounded-2xl bg-emerald-600 text-white py-3.5 font-bold" type="button" onClick={async ()=>{
+                    try{
+                      setRatingSubmitting(true);
+                      const clientData = localStorage.getItem('smartinfo-client');
+                      const client = clientData ? JSON.parse(clientData) : { phone: '' };
+                      await rateAgent(agent.id, ratingStars, ratingComment, client.phone);
+                      setRatingSubmitting(false);
+                      navigate('/map');
+                    }catch(err){
+                      console.error('Erro ao enviar avaliação:', err);
+                      setRatingSubmitting(false);
+                      navigate('/map');
+                    }
+                  }}>{ratingSubmitting? 'Enviando...':'Enviar avaliação'}</button>
+                  <button className="rounded-2xl bg-slate-200 text-slate-700 py-3.5 font-bold" type="button" onClick={()=>{setShowRating(false); navigate('/map');}}>Pular</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {showEtaPopup && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+            <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-lg font-bold text-slate-900">Mais tempo</p>
+                  <p className="text-sm text-slate-500">Escolha quantos minutos a mais precisa (máx 30).</p>
+                </div>
+                <button
+                  type="button"
+                  className="text-slate-400 hover:text-slate-600"
+                  onClick={() => setShowEtaPopup(false)}
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="mt-5 space-y-4">
+                <label className="block text-sm font-bold text-slate-700">Minutos</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={customEtaValue}
+                  onChange={e => setCustomEtaValue(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-mpesaRed focus:ring-4 focus:ring-mpesaRed/10"
+                />
+                {etaError && <p className="text-sm text-red-600">{etaError}</p>}
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    className="rounded-2xl bg-mpesaRed text-white py-3.5 font-bold"
+                    onClick={confirmCustomEta}
+                  >
+                    Confirmar
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-2xl bg-slate-200 text-slate-700 py-3.5 font-bold"
+                    onClick={() => setShowEtaPopup(false)}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );

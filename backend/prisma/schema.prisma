@@ -122,11 +122,14 @@ model LiquidityPing {
 }
 
 model Rating {
-  id        String   @id @default(uuid())
-  agentId   String
-  stars     Int
-  comment   String?
-  createdAt DateTime @default(now())
+  id          String   @id @default(uuid())
+  agentId     String
+  clientPhone String
+  stars       Int
+  comment     String?
+  createdAt   DateTime @default(now())
 
   agent Agent @relation(fields: [agentId], references: [id])
+
+  @@unique([agentId, clientPhone])
 }
