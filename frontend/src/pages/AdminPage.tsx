@@ -5,7 +5,7 @@ import PrimaryButton from '../components/PrimaryButton';
 import { fetchAgents } from '../services/agentService';
 import { fetchPings } from '../services/liquidityPingService';
 import { requestTemporaryAgent } from '../services/temporaryAgentService';
-import axios from 'axios';
+import { api } from '../services/apiClient';
 
 const AdminPage = () => {
   const navigate = useNavigate();
@@ -32,7 +32,7 @@ const AdminPage = () => {
       const fetchedPings = await fetchPings();
       setPings(fetchedPings);
 
-      const resTemp = await axios.get('http://localhost:5000/api/temporary-agents');
+      const resTemp = await api.get('/temporary-agents');
       setTempAgentsCount(resTemp.data.length);
     } catch (err) {
       console.error('Erro ao carregar dados do admin:', err);

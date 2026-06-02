@@ -1,15 +1,18 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Phone, AlertCircle, Compass } from 'lucide-react';
+import { User, Phone, AlertCircle, Compass, Loader2 } from 'lucide-react';
 import PrimaryButton from '../components/PrimaryButton';
+import { registerUser } from '../services/authService';
 
 const RegisterPage = () => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    setError('');
     if (!name.trim() || !phone.trim()) {
       setError('Por favor preencha o seu nome e número M-Pesa.');
       return;
@@ -19,8 +22,17 @@ const RegisterPage = () => {
       setError('Por favor, introduza um número M-Pesa válido (84/85).');
       return;
     }
-    localStorage.setItem('smartinfo-client', JSON.stringify({ name: name.trim(), phone: cleanPhone }));
-    navigate('/map');
+
+    setLoading(true);
+    try {
+      await registerUser(name.trim(), cleanPhone);
+      navigate('/map');
+    } catch (err) {
+      setError('Erro ao registrar. Tente novamente.');
+      console.error('Erro de registro:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -46,7 +58,8 @@ const RegisterPage = () => {
               <input
                 value={name}
                 onChange={event => setName(event.target.value)}
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 pl-11 pr-4 text-sm text-slate-800 outline-none transition focus:border-mpesaRed focus:bg-white focus:ring-4 focus:ring-mpesaRed/10"
+                disabled={loading}
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 pl-11 pr-4 text-sm text-slate-800 outline-none transition focus:border-mpesaRed focus:bg-white focus:ring-4 focus:ring-mpesaRed/10 disabled:opacity-50"
                 placeholder="Ex: Maria Manuel"
               />
             </div>
@@ -62,7 +75,8 @@ const RegisterPage = () => {
               <input
                 value={phone}
                 onChange={event => setPhone(event.target.value)}
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 pl-11 pr-4 text-sm text-slate-800 outline-none transition focus:border-mpesaRed focus:bg-white focus:ring-4 focus:ring-mpesaRed/10"
+                disabled={loading}
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 pl-11 pr-4 text-sm text-slate-800 outline-none transition focus:border-mpesaRed focus:bg-white focus:ring-4 focus:ring-mpesaRed/10 disabled:opacity-50"
                 placeholder="84 123 4567"
                 inputMode="tel"
               />
@@ -79,9 +93,23 @@ const RegisterPage = () => {
           ) : null}
 
           {/* Submit Button */}
-          <PrimaryButton type="button" onClick={handleSubmit} className="w-full py-4 font-bold flex justify-center items-center gap-2 shadow-lg shadow-mpesaRed/10 hover:shadow-mpesaRed/20 transition transform active:scale-98">
-            <Compass className="h-4 w-4" />
-            <span>Ver Agentes Próximos</span>
+          <PrimaryButton 
+            type="button" 
+            onClick={handleSubmit} 
+            disabled={loading}
+            className="w-full py-4 font-bold flex justify-center items-center gap-2 shadow-lg shadow-mpesaRed/10 hover:shadow-mpesaRed/20 transition transform active:scale-98 disabled:opacity-50"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Processando...</span>
+              </>
+            ) : (
+              <>
+                <Compass className="h-4 w-4" />
+                <span>Ver Agentes Próximos</span>
+              </>
+            )}
           </PrimaryButton>
         </div>
       </div>

@@ -5,6 +5,8 @@ import agentRoutes from './routes/agentRoutes'
 import requestRoutes from './routes/requestRoutes'
 import temporaryAgentRoutes from './routes/temporaryAgentRoutes'
 import liquidityPingRoutes from './routes/liquidityPingRoutes'
+import clientRoutes from './routes/clientRoutes'
+import userRoutes from './routes/userRoutes'
 
 dotenv.config()
 
@@ -24,6 +26,7 @@ app.get('/', (_req, res) => {
       requests: '/api/requests',
       temporaryAgents: '/api/temporary-agents',
       liquidityPings: '/api/liquidity-pings',
+      users: '/api/users',
     },
   })
 })
@@ -33,5 +36,7 @@ app.use('/api/agents', agentRoutes)
 app.use('/api/requests', requestRoutes)
 app.use('/api/temporary-agents', temporaryAgentRoutes)
 app.use('/api/liquidity-pings', liquidityPingRoutes)
+app.use('/api/clients', clientRoutes)
+app.use('/api/users', userRoutes)
 
 export default app

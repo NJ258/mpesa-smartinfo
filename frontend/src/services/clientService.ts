@@ -1,10 +1,15 @@
-import axios from 'axios';
+import { api, handleApiError } from './apiClient';
 import type { ClientProfile } from '../types';
 
-const api = axios.create({
-  baseURL: 'http://localhost:5000/api'
-});
-
 export const saveClient = async (profile: ClientProfile) => {
-  await api.post('/clients', profile);
+  try {
+    const response = await api.post('/clients', profile);
+    if (!response.data) {
+      throw new Error('Erro ao salvar perfil do cliente');
+    }
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao salvar cliente:', handleApiError(error));
+    throw error;
+  }
 };

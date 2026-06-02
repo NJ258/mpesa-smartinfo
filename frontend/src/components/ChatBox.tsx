@@ -14,7 +14,7 @@ const ChatBox = ({ agent, message }: { agent: Agent; message: string }) => {
   return (
     <div className="space-y-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
       <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-        <MessageSquare className="h-4 w-4 text-mpesaRed" />
+        <MessageSquare className="h-4 w-4 text-mpesaGreen" />
         <span>Chat com {agent.name}</span>
       </div>
       
@@ -37,9 +37,9 @@ const ChatBox = ({ agent, message }: { agent: Agent; message: string }) => {
         ))}
       </div>
       
-      <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 px-4 py-3 bg-slate-50">
-        <span className="text-xs text-slate-500 font-medium">Escolha uma operação abaixo para enviar</span>
-        <Send className="h-4 w-4 text-slate-400" />
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-mpesaGreen/20 bg-mpesaGreen/5 px-4 py-3">
+        <span className="text-xs text-slate-600 font-medium">Escolha uma operação abaixo para enviar</span>
+        <Send className="h-4 w-4 text-mpesaGreen" />
       </div>
     </div>
   );

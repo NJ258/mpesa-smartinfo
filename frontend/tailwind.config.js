@@ -7,9 +7,11 @@ export default {
     extend: {
       colors: {
         mpesaRed: "#E60000",
+        mpesaGreen: "#00A818",
+        mpesaWhite: "#FFFFFF",
         mpesaGray: "#4A4A4A",
         mpesaLight: "#F6F6F6",
-        mpesaGreen: "#16A34A",
+        mpesaDarkGray: "#333333",
         mpesaYellow: "#F59E0B",
         mpesaError: "#DC2626"
       },

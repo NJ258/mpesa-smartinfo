@@ -5,8 +5,8 @@ import AgentMap from '../components/AgentMap';
 import AgentCard from '../components/AgentCard';
 import BottomSheet from '../components/BottomSheet';
 import PrimaryButton from '../components/PrimaryButton';
-import { mockAgents } from '../data/mockAgents';
 import { fetchAgents } from '../services/agentService';
+import { getDeviceLocation } from '../services/geolocationService';
 import type { Agent } from '../types';
 
 const neighborhoodCoords: Record<string, [number, number]> = {
@@ -20,37 +20,36 @@ const neighborhoodCoords: Record<string, [number, number]> = {
 const MapPage = () => {
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [search, setSearch] = useState('');
-  const [userCoords, setUserCoords] = useState<[number, number]>([-25.9627, 32.5800]);
+  const [userCoords, setUserCoords] = useState<[number, number]>([-25.9655, 32.5832]); // Default: Maputo Centro
   const [searchRadius] = useState(1500); // 1.5km
   const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const client = useMemo(() => {
-    const saved = localStorage.getItem('smartinfo-client');
+    const saved = localStorage.getItem('smartinfo-user');
     if (!saved) return null;
-    return JSON.parse(saved) as { name: string; phone: string };
+    return JSON.parse(saved) as { name: string; phoneNumber: string };
   }, []);
 
-  const handleLocate = () => {
-    if (!navigator.geolocation) {
-      alert('Geolocalização não é suportada por este navegador.');
-      return;
-    }
+  const handleLocate = async () => {
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserCoords([position.coords.latitude, position.coords.longitude]);
-        setLocating(false);
-      },
-      (error) => {
-        console.warn('Erro ao obter geolocalização:', error);
-        setLocating(false);
-      },
-      { enableHighAccuracy: true, timeout: 8000 }
-    );
+    setLocationError(null);
+    try {
+      const location = await getDeviceLocation();
+      setUserCoords([location.latitude, location.longitude]);
+      console.log(`📍 Localização obtida: ${location.latitude}, ${location.longitude} (precisão: ${location.accuracy}m)`);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Erro desconhecido';
+      setLocationError(errorMsg);
+      console.error('Erro ao obter geolocalização:', errorMsg);
+    } finally {
+      setLocating(false);
+    }
   };
 
   useEffect(() => {
+    // Tenta obter a localização automaticamente ao carregar a página
     handleLocate();
   }, []);
 
@@ -77,10 +76,13 @@ const MapPage = () => {
         setAgents(data);
       } catch (err) {
         console.error('Erro ao carregar agentes da API:', err);
-        setAgents(mockAgents);
+        setAgents([]);
       }
     };
+    
     loadAgents();
+    const interval = setInterval(loadAgents, 3000);
+    return () => clearInterval(interval);
   }, []);
 
   const onlineAgents = useMemo(
@@ -93,7 +95,7 @@ const MapPage = () => {
   );
 
   if (!client) {
-    navigate('/register');
+    navigate('/login');
     return null;
   }
 
@@ -144,7 +146,7 @@ const MapPage = () => {
                 type="button"
                 onClick={handleLocate}
                 disabled={locating}
-                className="rounded-2xl bg-slate-800 text-white hover:bg-slate-900 px-5 py-3.5 text-sm font-bold flex items-center justify-center gap-2 transition disabled:opacity-70 active:scale-95"
+                className="rounded-2xl bg-mpesaGreen hover:bg-mpesaGreen/90 text-white px-5 py-3.5 text-sm font-bold flex items-center justify-center gap-2 transition disabled:opacity-70 disabled:cursor-not-allowed active:scale-95 shadow-sm shadow-mpesaGreen/20 hover:shadow-md hover:shadow-mpesaGreen/30"
               >
                 <LocateFixed className={`h-4 w-4 ${locating ? 'animate-spin' : ''}`} />
                 <span>{locating ? 'Obtendo posição...' : 'Usar Minha Localização'}</span>

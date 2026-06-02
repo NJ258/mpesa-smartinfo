@@ -4,12 +4,11 @@ import { ArrowLeft, Star, MapPin, Send, Clock, CheckCircle2, XCircle, ArrowRight
 import ChatBox from '../components/ChatBox';
 import PrimaryButton from '../components/PrimaryButton';
 import ReservationTimer from '../components/ReservationTimer';
-import { mockAgents } from '../data/mockAgents';
 import type { Agent } from '../types';
 import { fetchAgentById } from '../services/agentService';
 import { rateAgent } from '../services/agentService';
-import { createPing, setOnTheWay, confirmArrival, rejectPing } from '../services/liquidityPingService';
-import axios from 'axios';
+import { createPing, setOnTheWay, confirmArrival, rejectPing, fetchPings } from '../services/liquidityPingService';
+import { api } from '../services/apiClient';
 
 const ChatPage = () => {
   const { agentId } = useParams();
@@ -26,7 +25,6 @@ const ChatPage = () => {
   const [ratingStars, setRatingStars] = useState<number>(5);
   const [ratingComment, setRatingComment] = useState<string>('');
   const [ratingSubmitting, setRatingSubmitting] = useState(false);
-  const [showEtaPopup, setShowEtaPopup] = useState(false);
   const [customEtaValue, setCustomEtaValue] = useState('15');
   const [etaError, setEtaError] = useState('');
 
@@ -38,8 +36,6 @@ const ChatPage = () => {
         setAgent(data);
       } catch (err) {
         console.error('Erro ao buscar agente:', err);
-        const mock = mockAgents.find(a => a.id === agentId);
-        if (mock) setAgent(mock);
       } finally {
         setLoadingAgent(false);
       }
@@ -52,7 +48,7 @@ const ChatPage = () => {
     
     const interval = setInterval(async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/liquidity-pings`);
+        const response = await api.get('/liquidity-pings');
         const found = response.data.find((p: any) => p.id === currentPing.id);
         if (found) {
           if (found.status === 'ACCEPTED') {
@@ -75,20 +71,50 @@ const ChatPage = () => {
     return () => clearInterval(interval);
   }, [step, currentPing]);
 
+  useEffect(() => {
+    if (step !== 'arrived' || !currentPing?.id) return;
+    
+    const interval = setInterval(async () => {
+      try {
+        const response = await api.get('/liquidity-pings');
+        const found = response.data.find((p: any) => p.id === currentPing.id);
+        if (found) {
+          if (found.status === 'ARRIVED') {
+            setShowRating(true);
+            clearInterval(interval);
+          } else if (found.status === 'EXPIRED') {
+            alert('A sua reserva expirou!');
+            navigate('/map');
+            clearInterval(interval);
+          } else if (found.status === 'REJECTED') {
+            alert('O pedido foi cancelado.');
+            navigate('/map');
+            clearInterval(interval);
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao verificar estado do ping:', err);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [step, currentPing, navigate]);
+
+
   const sendRequest = async () => {
     if (!type || !amount.trim() || !agent) return;
     setStep('pending');
     setResponseMessage('Aguardando resposta do agente...');
 
-    const clientData = localStorage.getItem('smartinfo-client');
-    const client = clientData ? JSON.parse(clientData) : { name: 'Cliente Anónimo', phone: '840000000' };
+    const clientData = localStorage.getItem('smartinfo-user');
+    const client = clientData ? JSON.parse(clientData) : { name: 'Cliente Anónimo', phoneNumber: '840000000' };
 
     try {
       const numericAmount = parseFloat(amount.replace(/[^\d]/g, '')) || 100;
       const ping = await createPing({
         clientName: client.name,
-        clientPhone: client.phone,
-        agentId: Number(agent.id),
+        clientPhone: client.phoneNumber || client.phone || '840000000',
+        agentId: agent.id,
         amount: numericAmount,
         type: type === 'Levantamento' ? 'WITHDRAW' : 'DEPOSIT'
       });
@@ -103,52 +129,14 @@ const ChatPage = () => {
     }
   };
 
-  const handleEtaSelect = async (eta: string) => {
-    let parsed = parseInt(eta, 10);
-    if (eta.includes('+')) {
-      setShowEtaPopup(true);
-      setCustomEtaValue('15');
-      setEtaError('');
-      return;
-    }
-
-    if (!isNaN(parsed) && parsed > 30) parsed = 30;
-    setEtaMinutes(isNaN(parsed) ? 15 : parsed);
+  const handleEtaSelect = async (etaMinutes: number) => {
+    const eta = `${etaMinutes} min`;
+    setEtaMinutes(etaMinutes);
 
     if (!currentPing?.id) {
       setStep('arrived');
       return;
     }
-    try {
-      const updated = await setOnTheWay(currentPing.id, eta);
-      setCurrentPing(updated);
-      setStep('arrived');
-    } catch (err) {
-      console.error('Erro ao confirmar a caminho:', err);
-      setStep('arrived');
-    }
-  };
-
-  const confirmCustomEta = async () => {
-    const parsed = parseInt(customEtaValue, 10);
-    if (isNaN(parsed) || parsed < 1) {
-      setEtaError('Informe um valor entre 1 e 30 minutos.');
-      return;
-    }
-    const limited = parsed > 30 ? 30 : parsed;
-    if (parsed > 30) {
-      setEtaError('O tempo máximo é 30 minutos. Ajustado para 30 min.');
-    }
-
-    const eta = `${limited} min`;
-    setEtaMinutes(limited);
-    setShowEtaPopup(false);
-
-    if (!currentPing?.id) {
-      setStep('arrived');
-      return;
-    }
-
     try {
       const updated = await setOnTheWay(currentPing.id, eta);
       setCurrentPing(updated);
@@ -321,22 +309,54 @@ const ChatPage = () => {
 
         {/* Step: ETA */}
         {step === 'eta' && (
-          <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5 space-y-4">
+          <div className="rounded-2xl border border-mpesaGreen bg-mpesaGreen/5 p-5 space-y-4">
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-slate-500" />
-              <p className="text-sm font-bold text-slate-700">Quanto tempo até chegar?</p>
+              <Clock className="h-5 w-5 text-mpesaGreen" />
+              <p className="text-sm font-bold text-slate-800">Quanto tempo até chegar?</p>
             </div>
-            <div className="grid gap-2.5 grid-cols-4">
-              {['5 min', '10 min', '15+ min', '30 min'].map(label => (
+            <p className="text-xs text-slate-600">Escolha entre 1 e 30 minutos</p>
+            <div className="grid gap-2 grid-cols-4 sm:grid-cols-6">
+              {[5, 10, 15, 20, 25, 30].map(minutes => (
                 <button 
-                  key={label} 
+                  key={minutes} 
                   type="button" 
-                  className="rounded-2xl border-2 border-slate-100 bg-white px-3 py-3.5 text-sm font-bold text-slate-600 transition-all duration-300 hover:border-mpesaRed hover:text-mpesaRed active:scale-95" 
-                  onClick={() => handleEtaSelect(label)}
+                  className="rounded-xl border-2 border-mpesaGreen bg-white text-mpesaGreen px-2 py-3 text-sm font-bold transition-all duration-300 hover:bg-mpesaGreen hover:text-white active:scale-95" 
+                  onClick={() => handleEtaSelect(minutes)}
                 >
-                  {label}
+                  {minutes}m
                 </button>
               ))}
+            </div>
+            <div className="pt-2 border-t border-mpesaGreen/20">
+              <label className="block text-xs font-bold text-slate-700 mb-2">Ou escolha outro tempo:</label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={customEtaValue}
+                  onChange={e => setCustomEtaValue(e.target.value)}
+                  className="flex-1 rounded-xl border-2 border-mpesaGreen bg-white px-3 py-2.5 text-sm font-bold text-mpesaGreen outline-none focus:ring-2 focus:ring-mpesaGreen/20"
+                  placeholder="Ex: 12"
+                />
+                <button
+                  type="button"
+                  className="rounded-xl bg-mpesaGreen text-white px-4 py-2.5 font-bold text-sm transition hover:bg-mpesaGreen/90 active:scale-95"
+                  onClick={() => {
+                    const parsed = parseInt(customEtaValue, 10);
+                    if (isNaN(parsed) || parsed < 1) {
+                      setEtaError('Informe um valor entre 1 e 30 minutos.');
+                      return;
+                    }
+                    const limited = parsed > 30 ? 30 : parsed;
+                    handleEtaSelect(limited);
+                    setEtaError('');
+                  }}
+                >
+                  OK
+                </button>
+              </div>
+              {etaError && <p className="text-xs text-mpesaError mt-2">{etaError}</p>}
             </div>
           </div>
         )}
@@ -392,9 +412,9 @@ const ChatPage = () => {
                   <button className="rounded-2xl bg-emerald-600 text-white py-3.5 font-bold" type="button" onClick={async ()=>{
                     try{
                       setRatingSubmitting(true);
-                      const clientData = localStorage.getItem('smartinfo-client');
-                      const client = clientData ? JSON.parse(clientData) : { phone: '' };
-                      await rateAgent(agent.id, ratingStars, ratingComment, client.phone);
+                      const clientData = localStorage.getItem('smartinfo-user');
+                      const client = clientData ? JSON.parse(clientData) : { phoneNumber: '' };
+                      await rateAgent(agent.id, ratingStars, ratingComment, client.phoneNumber || client.phone || '');
                       setRatingSubmitting(false);
                       navigate('/map');
                     }catch(err){
@@ -407,53 +427,6 @@ const ChatPage = () => {
                 </div>
               </div>
             )}
-          </div>
-        )}
-        {showEtaPopup && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-            <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-lg font-bold text-slate-900">Mais tempo</p>
-                  <p className="text-sm text-slate-500">Escolha quantos minutos a mais precisa (máx 30).</p>
-                </div>
-                <button
-                  type="button"
-                  className="text-slate-400 hover:text-slate-600"
-                  onClick={() => setShowEtaPopup(false)}
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="mt-5 space-y-4">
-                <label className="block text-sm font-bold text-slate-700">Minutos</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={30}
-                  value={customEtaValue}
-                  onChange={e => setCustomEtaValue(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-mpesaRed focus:ring-4 focus:ring-mpesaRed/10"
-                />
-                {etaError && <p className="text-sm text-red-600">{etaError}</p>}
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    className="rounded-2xl bg-mpesaRed text-white py-3.5 font-bold"
-                    onClick={confirmCustomEta}
-                  >
-                    Confirmar
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-2xl bg-slate-200 text-slate-700 py-3.5 font-bold"
-                    onClick={() => setShowEtaPopup(false)}
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            </div>
           </div>
         )}
       </div>

@@ -74,10 +74,10 @@ function App() {
             </Link>
           </div>
 
-          <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
-            <span className={`h-2 w-2 rounded-full ${online ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-            <span className="text-xs font-bold text-slate-500 hidden sm:inline">
-              {online ? 'Online' : 'Offline'}
+          <div className="flex items-center gap-2 bg-gradient-to-r from-mpesaGreen/5 to-slate-50 px-3 py-1.5 rounded-full border border-mpesaGreen/20">
+            <span className={`h-2 w-2 rounded-full ${online ? 'bg-mpesaGreen animate-pulse' : 'bg-mpesaRed'}`} />
+            <span className="text-xs font-bold text-slate-600 hidden sm:inline">
+              {online ? 'Online' : 'Sem conexão'}
             </span>
           </div>
         </div>

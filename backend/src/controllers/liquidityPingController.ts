@@ -147,7 +147,8 @@ export const rejectLiquidityPing = async (req: Request, res: Response): Promise<
       return
     }
 
-    if (ping.status !== 'PENDING') {
+    const allowedStatuses = ['PENDING', 'ACCEPTED', 'ON_THE_WAY']
+    if (!allowedStatuses.includes(ping.status)) {
       res.status(400).json({ message: `Não é possível rejeitar um ping com estado "${ping.status}".` })
       return
     }
@@ -186,10 +187,9 @@ export const onTheWayLiquidityPing = async (req: Request, res: Response): Promis
 
     // Validate ETA
     const { eta } = req.body
-    const validEtas = ['5 min', '10 min', '15+ min']
 
-    if (!eta || !validEtas.includes(eta)) {
-      res.status(400).json({ message: `Informe o ETA: ${validEtas.join(', ')}.` })
+    if (!eta || typeof eta !== 'string' || eta.trim().length === 0) {
+      res.status(400).json({ message: 'Informe um ETA válido.' })
       return
     }
 

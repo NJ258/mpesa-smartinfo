@@ -113,10 +113,10 @@ const AgentPage = () => {
           <button 
             type="button" 
             onClick={toggleOnline} 
-            className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition-all duration-300 ${
+            className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition-all duration-300 shadow-sm ${
               online 
-                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-600' 
-                : 'bg-white/10 text-white/60 border border-white/10 hover:bg-white/20'
+                ? 'bg-mpesaGreen text-white shadow-mpesaGreen/20 hover:bg-mpesaGreen/90' 
+                : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
             }`}
           >
             <Power className="h-4 w-4" />
